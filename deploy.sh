@@ -24,6 +24,7 @@
 #   /opt/cdnx/uninstall.sh    一键卸载（stop 服务 + 清配置 + 删本目录）
 #   /opt/cdnx/update_ips.sh   每天自动更新优选 IP（非交互，只改订阅文件，
 #                             不动 Xray/Nginx，不用重启任何服务）
+#   /opt/cdnx/menu.sh         交互菜单：切换运营商 / 立即更新 / 查看状态
 #   系统侧只留三样：Xray 配置、Nginx 站点文件、cron 定时任务
 #   （/etc/cron.d/cdnx-update，每天 04:00 跑 update_ips.sh），卸载脚本会一并清掉
 #
@@ -397,6 +398,61 @@ echo "$(date '+%F %T') 优选 IP 已更新：$SELECTED"
 UIPS
 chmod +x "$DEPLOY_DIR/update_ips.sh"
 
+# ---- 生成管理菜单：切换运营商后立即按新运营商更新 ----
+cat > "$DEPLOY_DIR/menu.sh" <<'MENUC'
+#!/usr/bin/env bash
+# cdnx 管理菜单：切换运营商（换宽带/换地方时用）、立即更新、查看状态
+set -e
+DEPLOY_DIR="/opt/cdnx"
+ENV_FILE="$DEPLOY_DIR/deploy.env"
+[ -f "$ENV_FILE" ] || { echo "找不到 deploy.env，请先跑部署脚本"; exit 1; }
+
+isp_name() {
+  case "$1" in
+    1) echo "电信" ;;
+    2) echo "联通" ;;
+    3) echo "移动" ;;
+    4) echo "通用(WeTest)" ;;
+    5) echo "全部" ;;
+    *) echo "未知" ;;
+  esac
+}
+
+while true; do
+  source "$ENV_FILE"
+  echo ""
+  echo "=== cdnx 管理菜单 ==="
+  echo "当前运营商：$(isp_name "${ISP:-5}")    每次取 ${COUNT:-5} 个 IP"
+  echo "--------------------------------"
+  echo "  1) 电信            2) 联通"
+  echo "  3) 移动            4) 通用(WeTest)"
+  echo "  5) 全部"
+  echo "  6) 按当前运营商立即更新一次 IP"
+  echo "  7) 查看当前优选 IP 和最近日志"
+  echo "  0) 退出"
+  echo "--------------------------------"
+  read -r -p "选择： " C
+  case "$C" in
+    1|2|3|4|5)
+      sed -i "s/^ISP=.*/ISP=$C/" "$ENV_FILE"
+      echo "已切换为：$(isp_name "$C")，正在按新运营商更新优选 IP..."
+      bash "$DEPLOY_DIR/update_ips.sh" || echo "更新失败，可稍后选 6 重试"
+      echo "记得在客户端点「更新订阅」拿新 IP"
+      ;;
+    6)
+      bash "$DEPLOY_DIR/update_ips.sh" || echo "更新失败，稍后再试"
+      ;;
+    7)
+      grep '优选 IP' "$DEPLOY_DIR/node_info.txt" 2>/dev/null || true
+      tail -n 3 /var/log/cdnx_update.log 2>/dev/null || echo "暂无更新日志"
+      ;;
+    0) exit 0 ;;
+    *) echo "无效选择" ;;
+  esac
+done
+MENUC
+chmod +x "$DEPLOY_DIR/menu.sh"
+
 # ---- 注册系统 cron：每天凌晨 4 点自动更新（不依赖 1Panel）----
 cat > /etc/cron.d/cdnx-update <<CRONEOF
 0 4 * * * root $DEPLOY_DIR/update_ips.sh >> /var/log/cdnx_update.log 2>&1
@@ -445,6 +501,7 @@ XHTTP 路径：$XHTTP_PATH
 节点二维码：$QR_DIR/node_*.png
 订阅二维码：$QR_DIR/sub_qr.png
 定时更新：每天 04:00 自动换优选 IP（cron：/etc/cron.d/cdnx-update）
+管理菜单：bash /opt/cdnx/menu.sh（切换运营商 / 立即更新 / 查看状态）
 卸载脚本：$DEPLOY_DIR/uninstall.sh
 EOF
 
@@ -465,6 +522,7 @@ echo ""
 echo "定时更新：每天 04:00 由系统 cron 自动跑 $DEPLOY_DIR/update_ips.sh"
 echo "  更新只改订阅文件，不用重启 Xray；Karing 点「更新订阅」就能拿到新 IP"
 echo "  日志：/var/log/cdnx_update.log；手动立刻更新：bash $DEPLOY_DIR/update_ips.sh"
+echo "换宽带/换地方切运营商：bash $DEPLOY_DIR/menu.sh（菜单选择，改完立即生效）"
 echo ""
 echo "CF 端还没做的两步（必须做，不然客户端连不上）："
 echo "  1. DNS：$DOMAIN 的 A 记录 -> VPS IP，打开橙云（Proxied）"

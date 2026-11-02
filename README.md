@@ -58,6 +58,16 @@ bash <(curl -fsSL https://raw.githubusercontent.com/aucrazy-p/cdnx/main/install.
 bash /opt/cdnx/update_ips.sh
 ```
 
+## 切换运营商
+
+换了宽带或网络环境需要换 IP 来源时，用交互菜单：
+
+```bash
+bash /opt/cdnx/menu.sh
+```
+
+菜单里选运营商（电信 / 联通 / 移动 / 通用 / 全部）后立即按新运营商更新一批 IP，并作为之后每日自动更新的默认值。菜单里还可以手动触发更新、查看当前 IP 和最近日志。
+
 ## 卸载
 
 ```bash

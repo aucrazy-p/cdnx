@@ -435,9 +435,10 @@ while true; do
   echo "  3) 移动            4) 通用(WeTest)"
   echo "  5) 全部"
   echo "  6) 按当前运营商立即更新一次 IP"
-  echo "  7) 查看当前优选 IP 和最近日志"
-  echo "  8) 重新运行部署向导（改域名 / 端口 / 重挑 IP）"
-  echo "  9) 一键卸载"
+  echo "  7) 查询订阅（地址 + 二维码直接显示在终端）"
+  echo "  8) 查看当前优选 IP 和最近日志"
+  echo "  9) 重新运行部署向导（改域名 / 端口 / 重挑 IP）"
+  echo "  10) 一键卸载"
   echo "  0) 退出"
   echo "--------------------------------"
   read -r -p "选择： " C
@@ -452,16 +453,29 @@ while true; do
       bash "$DEPLOY_DIR/update_ips.sh" || echo "更新失败，稍后再试"
       ;;
     7)
+      SUB_URL=$(sed -n 's/^订阅地址：//p' "$DEPLOY_DIR/node_info.txt" 2>/dev/null | head -n 1)
+      if [ -z "$SUB_URL" ]; then
+        echo "找不到订阅地址，请先完整部署一次"
+      else
+        echo ""
+        echo "订阅地址（复制进 Karing / 客户端的订阅栏）："
+        echo "$SUB_URL"
+        echo ""
+        echo "订阅二维码（手机扫这个就行，不用去文件夹找）："
+        qrencode -t UTF8 -m 2 "$SUB_URL" 2>/dev/null || echo "(本机终端显示二维码失败，用上面的地址手动添加)"
+      fi
+      ;;
+    8)
       grep '优选 IP' "$DEPLOY_DIR/node_info.txt" 2>/dev/null || true
       tail -n 3 /var/log/cdnx_update.log 2>/dev/null || echo "暂无更新日志"
       ;;
-    8)
+    9)
       echo "重新运行部署向导（UUID 与订阅地址自动复用，客户端不受影响）..."
       TMPD=$(mktemp)
       curl -fsSL "$REPO_RAW/deploy.sh" -o "$TMPD" && bash "$TMPD" || echo "部署未完成，可稍后重试"
       rm -f "$TMPD"
       ;;
-    9)
+    10)
       bash "$DEPLOY_DIR/uninstall.sh" || true
       exit 0
       ;;

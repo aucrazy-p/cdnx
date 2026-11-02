@@ -206,7 +206,7 @@ systemctl restart xray
 systemctl reload nginx || systemctl restart nginx
 
 # 防火墙：本脚本不做任何放行操作，由使用者自行在系统防火墙
-# 和云平台安全组（甲骨文 OCI Security List / NSG）里放行 $CDN_PORT/tcp
+# 和云平台控制台的安全组里放行 $CDN_PORT/tcp
 
 # ---- 拉 bestcf 优选 IP，按运营商分组让你挑 ----
 echo ""

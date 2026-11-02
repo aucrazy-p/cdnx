@@ -20,6 +20,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/aucrazy-p/cdnx/main/install.
 
 脚本自动完成：装 Xray + Nginx、生成 UUID 和随机路径、自签证书、写配置、拉优选 IP 生成订阅和二维码。
 
+**已经部署过的机器再跑这条命令，不会重新安装，而是直接进入管理菜单。** 想改域名 / 端口 / 重挑 IP，在菜单里选「重新运行部署向导」即可，UUID 和订阅地址自动复用，客户端不受影响。
+
 ## 安装后还需手动做
 
 - **CF 后台**：DNS 添加 A 记录指向 VPS IP，打开橙云（Proxied）

@@ -73,8 +73,12 @@ while true; do
   esac
 done
 if ss -tln 2>/dev/null | grep -q ":$CDN_PORT "; then
-  echo "警告：$CDN_PORT 端口在 VPS 上已经被占用了，Nginx 起不来，换一个端口再跑。"
-  exit 1
+  if [ -f "$DEPLOY_DIR/deploy.env" ] && grep -q "^CDN_PORT=$CDN_PORT\$" "$DEPLOY_DIR/deploy.env"; then
+    echo "端口 $CDN_PORT 由本机已有 cdnx 部署占用，继续（将覆盖更新配置）。"
+  else
+    echo "警告：$CDN_PORT 端口已被其他程序占用，Nginx 起不来，换一个端口再跑。"
+    exit 1
+  fi
 fi
 echo "用端口：$CDN_PORT（客户端、CF、源站 Nginx 都用这一个端口）"
 
@@ -198,6 +202,8 @@ server {
     }
 }
 EOF
+# 清掉旧的 cdnx 站点（换域名重跑时避免残留），再挂新的
+rm -f /etc/nginx/sites-enabled/cdn-* /etc/nginx/sites-available/cdn-*
 ln -sf "/etc/nginx/sites-available/cdn-$DOMAIN" "/etc/nginx/sites-enabled/cdn-$DOMAIN"
 # 删掉发行版自带的默认站点，避免以后切 443 时端口冲突
 rm -f /etc/nginx/sites-enabled/default
@@ -405,6 +411,7 @@ cat > "$DEPLOY_DIR/menu.sh" <<'MENUC'
 set -e
 DEPLOY_DIR="/opt/cdnx"
 ENV_FILE="$DEPLOY_DIR/deploy.env"
+REPO_RAW="https://raw.githubusercontent.com/aucrazy-p/cdnx/main"
 [ -f "$ENV_FILE" ] || { echo "找不到 deploy.env，请先跑部署脚本"; exit 1; }
 
 isp_name() {
@@ -429,6 +436,8 @@ while true; do
   echo "  5) 全部"
   echo "  6) 按当前运营商立即更新一次 IP"
   echo "  7) 查看当前优选 IP 和最近日志"
+  echo "  8) 重新运行部署向导（改域名 / 端口 / 重挑 IP）"
+  echo "  9) 一键卸载"
   echo "  0) 退出"
   echo "--------------------------------"
   read -r -p "选择： " C
@@ -445,6 +454,16 @@ while true; do
     7)
       grep '优选 IP' "$DEPLOY_DIR/node_info.txt" 2>/dev/null || true
       tail -n 3 /var/log/cdnx_update.log 2>/dev/null || echo "暂无更新日志"
+      ;;
+    8)
+      echo "重新运行部署向导（UUID 与订阅地址自动复用，客户端不受影响）..."
+      TMPD=$(mktemp)
+      curl -fsSL "$REPO_RAW/deploy.sh" -o "$TMPD" && bash "$TMPD" || echo "部署未完成，可稍后重试"
+      rm -f "$TMPD"
+      ;;
+    9)
+      bash "$DEPLOY_DIR/uninstall.sh" || true
+      exit 0
       ;;
     0) exit 0 ;;
     *) echo "无效选择" ;;
